@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Holiday Orb Settings</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <h1>🎄 Holiday Orb</h1>
+    <p class="subtitle">Decorate GitHub with holiday cheer!</p>
+    
+    <div class="settings">
+      <div class="setting-item">
+        <label>
+          <input type="checkbox" id="enabled" checked>
+          <span>Enable Decorations</span>
+        </label>
+      </div>
+      
+      <div class="setting-item">
+        <label>
+          <input type="checkbox" id="snowflakes" checked>
+          <span>❄️ Snowflakes</span>
+        </label>
+      </div>
+      
+      <div class="setting-item">
+        <label>
+          <input type="checkbox" id="ornaments" checked>
+          <span>🎁 Ornaments & Effects</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <button id="save" class="btn-save">Save Settings</button>
+      <div id="status" class="status"></div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
