@@ -1,8 +1,11 @@
 // Popup JavaScript for Holiday Orb Extension
 
+// Safari compatibility: Use browser API if available, otherwise chrome
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
 document.addEventListener('DOMContentLoaded', () => {
   // Load saved settings
-  chrome.storage.sync.get(['enabled', 'snowflakes', 'ornaments'], (data) => {
+  browserAPI.storage.sync.get(['enabled', 'snowflakes', 'ornaments'], (data) => {
     document.getElementById('enabled').checked = data.enabled !== false;
     document.getElementById('snowflakes').checked = data.snowflakes !== false;
     document.getElementById('ornaments').checked = data.ornaments !== false;
@@ -16,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ornaments: document.getElementById('ornaments').checked
     };
 
-    chrome.storage.sync.set(settings, () => {
+    browserAPI.storage.sync.set(settings, () => {
       // Show status message
       const status = document.getElementById('status');
       status.textContent = 'Settings saved! Refresh GitHub to see changes.';
@@ -27,9 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 3000);
 
       // Reload all GitHub tabs to apply new settings
-      chrome.tabs.query({ url: 'https://github.com/*' }, (tabs) => {
+      browserAPI.tabs.query({ url: 'https://github.com/*' }, (tabs) => {
         tabs.forEach((tab) => {
-          chrome.tabs.reload(tab.id);
+          browserAPI.tabs.reload(tab.id);
         });
       });
     });

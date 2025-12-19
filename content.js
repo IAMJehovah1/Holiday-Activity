@@ -4,14 +4,21 @@
 (function() {
   'use strict';
 
+  // Safari compatibility: Use browser API if available, otherwise chrome
+  const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
+  // Configuration constants
+  const SNOWFLAKE_COUNT = 30;
+  const CONTRIBUTION_SELECTOR = 'td.ContributionCalendar-day';
+
   // Create snowflakes animation
   function createSnowflakes() {
     const snowContainer = document.createElement('div');
     snowContainer.id = 'holiday-orb-snow';
     snowContainer.className = 'holiday-orb-snow-container';
     
-    // Create 30 snowflakes
-    for (let i = 0; i < 30; i++) {
+    // Create snowflakes
+    for (let i = 0; i < SNOWFLAKE_COUNT; i++) {
       const snowflake = document.createElement('div');
       snowflake.className = 'holiday-orb-snowflake';
       snowflake.innerHTML = '❄';
@@ -28,7 +35,7 @@
 
   // Add holiday orb decorations to contribution graph
   function decorateContributionGraph() {
-    const contributionDays = document.querySelectorAll('td.ContributionCalendar-day');
+    const contributionDays = document.querySelectorAll(CONTRIBUTION_SELECTOR);
     
     contributionDays.forEach((day) => {
       const level = day.getAttribute('data-level');
@@ -42,7 +49,7 @@
   // Add festive header decoration
   function addHeaderDecoration() {
     const header = document.querySelector('header');
-    if (header) {
+    if (header && !document.querySelector('.holiday-orb-header-decoration')) {
       const decoration = document.createElement('div');
       decoration.className = 'holiday-orb-header-decoration';
       decoration.innerHTML = '🎄 🎅 ⭐ 🎁 ❄️';
@@ -52,7 +59,7 @@
 
   // Initialize decorations
   function init() {
-    chrome.runtime.sendMessage({ action: 'getSettings' }, (settings) => {
+    browserAPI.runtime.sendMessage({ action: 'getSettings' }, (settings) => {
       if (settings.enabled) {
         if (settings.snowflakes) {
           createSnowflakes();
@@ -73,15 +80,32 @@
   }
 
   // Re-apply decorations when navigating (GitHub is a SPA)
+  // Observe only the main content area to reduce overhead
+  const observeTarget = document.querySelector('main') || document.body;
   const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
+    // Throttle decoration updates
+    let hasContributionChanges = false;
+    
+    for (const mutation of mutations) {
       if (mutation.type === 'childList') {
-        decorateContributionGraph();
+        const hasContributions = Array.from(mutation.addedNodes).some(node => 
+          node.nodeType === Node.ELEMENT_NODE && 
+          (node.matches && node.matches('.js-calendar-graph') || 
+           node.querySelector && node.querySelector('.js-calendar-graph'))
+        );
+        if (hasContributions) {
+          hasContributionChanges = true;
+          break;
+        }
       }
-    });
+    }
+    
+    if (hasContributionChanges) {
+      decorateContributionGraph();
+    }
   });
 
-  observer.observe(document.body, {
+  observer.observe(observeTarget, {
     childList: true,
     subtree: true
   });
