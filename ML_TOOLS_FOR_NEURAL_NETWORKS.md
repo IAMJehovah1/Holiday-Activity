@@ -561,7 +561,7 @@ A comprehensive collection of the most valuable tools for building, maintaining,
 
 - **Papers with Code**: https://paperswithcode.com/ - Track state-of-the-art models
 - **Distill.pub**: https://distill.pub/ - Visual explanations of ML concepts
-- **ML Ops Guide**: Best practices for productionizing ML models
+- **ML Ops Community**: https://mlops.community/ - Best practices for productionizing ML models
 - **Awesome Deep Learning**: https://github.com/ChristosChristofidis/awesome-deep-learning
 
 ---
