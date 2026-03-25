@@ -1,6 +1,11 @@
 """
 Command-line interface for the medical repository sorting tool.
 
+This module wires together argparse argument definitions with the
+``RepoSorter`` business logic in ``sorter.py``.  The public entry point
+is :func:`main`, which is also registered as the ``repo-sorter`` console
+script in ``setup.py``.
+
 Usage
 -----
     python -m repo_sorter <command> [options]
@@ -25,6 +30,8 @@ from .sorter import RepoSorter, _auto_categorize
 # Formatting helpers
 # ---------------------------------------------------------------------------
 
+# ANSI escape codes used for terminal colouring.
+# They are only applied when stdout is a real TTY (see _supports_color).
 _RESET = "\033[0m"
 _BOLD = "\033[1m"
 _CYAN = "\033[36m"
@@ -34,10 +41,12 @@ _GREY = "\033[90m"
 
 
 def _supports_color() -> bool:
+    """Return True when stdout is an interactive terminal that likely supports ANSI colours."""
     return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
 
 def _c(text: str, code: str) -> str:
+    """Wrap *text* in the given ANSI escape *code* when colour is supported."""
     if _supports_color():
         return f"{code}{text}{_RESET}"
     return text
@@ -72,7 +81,10 @@ def _print_category_list(categories: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def _cmd_add(args: argparse.Namespace, sorter: RepoSorter) -> int:
+    # Parse comma-separated tags string into a list (e.g. "fhir,hl7" → ["fhir", "hl7"])
     tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else []
+
+    # Parse optional JSON metadata string
     metadata: dict = {}
     if args.metadata:
         try:
@@ -81,6 +93,7 @@ def _cmd_add(args: argparse.Namespace, sorter: RepoSorter) -> int:
             print(f"Error: --metadata must be valid JSON. {exc}", file=sys.stderr)
             return 1
 
+    # Use the explicit category if given; otherwise try auto-detection
     category = args.category
     if not category and args.auto_categorize:
         category = _auto_categorize(args.description or "", [])
@@ -142,6 +155,7 @@ def _cmd_show(args: argparse.Namespace, sorter: RepoSorter) -> int:
 
 
 def _cmd_update(args: argparse.Namespace, sorter: RepoSorter) -> int:
+    # Collect only the fields the user actually provided on the command line
     fields: dict = {}
     if args.url is not None:
         fields["url"] = args.url
@@ -157,9 +171,12 @@ def _cmd_update(args: argparse.Namespace, sorter: RepoSorter) -> int:
         except json.JSONDecodeError as exc:
             print(f"Error: --metadata must be valid JSON. {exc}", file=sys.stderr)
             return 1
+
+    # Require at least one field to update, otherwise there's nothing to do
     if not fields:
         print("Nothing to update. Provide at least one option.", file=sys.stderr)
         return 1
+
     try:
         entry = sorter.update(args.name, **fields)
     except KeyError as exc:
@@ -225,6 +242,7 @@ def _cmd_categories(args: argparse.Namespace, sorter: RepoSorter) -> int:
 
 
 def _cmd_fetch(args: argparse.Namespace, sorter: RepoSorter) -> int:
+    # Prefer the CLI --token flag; fall back to the environment variable
     token = args.token or os.environ.get("GITHUB_TOKEN")
     print(f"Fetching repositories for '{args.username}' from GitHub…")
     try:
@@ -421,6 +439,9 @@ examples:
 # Entry point
 # ---------------------------------------------------------------------------
 
+# Map every command name (including aliases) to its handler function.
+# This allows main() to dispatch with a single dictionary lookup instead
+# of a chain of if/elif statements.
 _COMMAND_MAP = {
     "add": _cmd_add,
     "remove": _cmd_remove,
@@ -439,6 +460,12 @@ _COMMAND_MAP = {
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    """
+    Parse command-line arguments and dispatch to the appropriate handler.
+
+    Returns an integer exit code (0 = success, non-zero = error) so that
+    the shell can detect failures and the test suite can assert on it.
+    """
     parser = _build_parser()
     args = parser.parse_args(argv)
     sorter = RepoSorter(db_path=args.db)
