@@ -1,0 +1,4 @@
+# Medical Repository Sorting Tool — Python dependencies
+# No third-party packages are required; the tool uses only the standard library.
+# Uncomment the line below to install in editable/development mode:
+#   pip install -e .
