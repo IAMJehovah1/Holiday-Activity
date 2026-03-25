@@ -1,0 +1,19 @@
+{
+  "categories": {
+    "diagnostics": "Tools for medical diagnosis, test analysis, lab results, and decision support",
+    "ehr": "Electronic Health Record systems, FHIR integrations, and clinical data management",
+    "telemedicine": "Remote healthcare delivery platforms, video consultations, and telehealth apps",
+    "pharmacology": "Drug databases, dosage calculators, medication management, and pharmacy tools",
+    "research": "Medical research, clinical trials, biostatistics, and healthcare data analysis",
+    "patient-management": "Patient scheduling, appointment systems, care coordination, and intake forms",
+    "medical-imaging": "DICOM viewers, radiology tools, pathology imaging, and image analysis",
+    "wearables": "Health monitoring devices, wearable sensor integrations, and IoT health devices",
+    "mental-health": "Mental health platforms, therapy tools, mood tracking, and crisis support",
+    "emergency": "Emergency response, triage systems, EMS dispatch, and critical care tools",
+    "genomics": "Genomics, bioinformatics, DNA analysis, and precision medicine tools",
+    "nutrition": "Dietary tracking, nutrition analysis, calorie counting, and wellness tools",
+    "rehabilitation": "Physical therapy, occupational therapy, and rehabilitation management",
+    "general-healthcare": "General healthcare utilities, hospital management, and clinical workflows",
+    "other": "Miscellaneous or uncategorized repositories"
+  }
+}
