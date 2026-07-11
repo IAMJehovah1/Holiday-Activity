@@ -292,6 +292,49 @@ Commit `org-repos.json` to your repository to share the catalogue with your team
 
 ---
 
+## iPad Pro M2 Setup (Cooldown Workflow)
+
+Use this when running heavy Copilot/search tasks from an iPad Pro M2.
+
+### 1) Choose your environment
+
+- iPad terminal with Python 3.8+ (for example, iSH or a-Shell), or
+- GitHub Codespaces opened from Safari on iPad.
+
+### 2) Clone and install
+
+```bash
+git clone https://github.com/IAMJehovah1/Holiday-Activity.git
+cd Holiday-Activity
+pip install -e .
+```
+
+### 3) Run cooldown before heavy tasks
+
+```bash
+# Module form
+python -m repo_sorter cooldown --duration 30
+
+# Installed CLI form
+repo-sorter cooldown --duration 30
+```
+
+### 4) Tune for your workflow
+
+```bash
+# Custom label
+repo-sorter cooldown --duration 45 --label "Pre-search cooldown"
+
+# Verbose output (one line per second)
+repo-sorter cooldown --duration 20 --verbose
+```
+
+### 5) Daily routine
+
+Run the cooldown command immediately before intensive Copilot/search sessions so your M2 SoC can settle to a more stable thermal baseline.
+
+---
+
 ## Running the Tests
 
 ```bash
