@@ -474,6 +474,14 @@ class TestCooldown:
         result = run_cooldown(duration=0, _stream=io.StringIO(), _tick=0)
         assert result is None
 
+    def test_negative_duration_raises_value_error(self):
+        import io
+        import pytest
+        from repo_sorter.cooldown import run_cooldown
+
+        with pytest.raises(ValueError):
+            run_cooldown(duration=-1, _stream=io.StringIO(), _tick=0)
+
 
 # ---------------------------------------------------------------------------
 # Cooldown – CLI integration tests
@@ -518,3 +526,8 @@ class TestCooldownCLI:
         rc, out, _ = self._run(["cooldown", "-n", "0", "-l", "Quick cool"], db_path, capsys)
         assert rc == 0
         assert "Quick cool" in out
+
+    def test_cooldown_negative_duration_returns_error(self, db_path, capsys):
+        rc, _, err = self._run(["cooldown", "--duration", "-1"], db_path, capsys)
+        assert rc == 1
+        assert "--duration must be 0 or greater" in err

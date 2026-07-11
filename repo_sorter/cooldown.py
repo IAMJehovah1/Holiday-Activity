@@ -77,6 +77,8 @@ def run_cooldown(
         ``time.sleep`` calls).
     """
     out = _stream or sys.stdout
+    if duration < 0:
+        raise ValueError("duration must be 0 or greater")
     interactive = (not verbose) and _supports_color(out)
 
     header = _c(f"🧊  {label}", _BOLD + _CYAN, out)
