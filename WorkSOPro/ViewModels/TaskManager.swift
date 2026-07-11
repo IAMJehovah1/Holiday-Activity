@@ -97,8 +97,7 @@ class TaskManager: ObservableObject {
         Task { [weak self] in
             guard let self = self else { return }
 
-            await agentWorkerPool.executeTask(isHighImpactTask: isHighImpactMode) { [weak self] in
-                guard let self = self else { return }
+            await agentWorkerPool.executeTask(isHighImpactTask: isHighImpactMode) { [self] in
                 let prioritizedTasks = Self.prioritizeTasks(taskSnapshot)
 
                 await MainActor.run {

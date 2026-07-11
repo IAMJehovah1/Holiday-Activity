@@ -58,9 +58,7 @@ class WellBeingManager: ObservableObject {
         Task { [weak self] in
             guard let self = self else { return }
 
-            await workerPool.executeTask(isHighImpactTask: true) { [weak self] in
-                guard let self = self else { return }
-
+            await workerPool.executeTask(isHighImpactTask: true) { [self] in
                 await self.fetchStepCount()
                 await self.fetchExerciseTime()
                 await self.fetchStandHours()
