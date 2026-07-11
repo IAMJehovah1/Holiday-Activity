@@ -9,6 +9,8 @@ import Foundation
 import Combine
 
 class TaskManager: ObservableObject {
+    // Large task sets or multiple already-important tasks are treated as high-impact
+    // so AI reprioritization is forced through the thermal-aware queue.
     private static let highImpactTaskCountThreshold = 8
 
     @Published var tasks: [Task] = []

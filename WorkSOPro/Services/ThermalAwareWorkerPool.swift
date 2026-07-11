@@ -36,7 +36,8 @@ actor ThermalAwareWorkerPool {
         let taskPriority = priority(isHighImpactTask: isHighImpactTask)
         let completionCooldown = postExecutionCooldown(isHighImpactTask: isHighImpactTask)
         
-        let scheduledTask = Task.detached(priority: taskPriority) { [self] in
+        let scheduledTask = Task.detached(priority: taskPriority) { [weak self] in
+            guard let self = self else { return }
             await task()
             
             if let cooldown = completionCooldown {
