@@ -266,14 +266,15 @@ def _cmd_import(args: argparse.Namespace, sorter: RepoSorter) -> int:
 
 
 def _cmd_cooldown(args: argparse.Namespace, sorter: RepoSorter) -> int:
-    if args.duration < 0:
-        print("Error: --duration must be 0 or greater.", file=sys.stderr)
+    try:
+        run_cooldown(
+            duration=args.duration,
+            label=args.label,
+            verbose=args.verbose,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
-    run_cooldown(
-        duration=args.duration,
-        label=args.label,
-        verbose=args.verbose,
-    )
     return 0
 
 
