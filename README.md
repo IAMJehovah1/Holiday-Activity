@@ -295,6 +295,9 @@ Commit `org-repos.json` to your repository to share the catalogue with your team
 ## iPad Pro M2 Setup (Cooldown Workflow)
 
 Use this when running heavy Copilot/search tasks from an iPad Pro M2.
+The cooldown command is an intentional *idle timer* so a heavy run starts from
+a consistent thermal state instead of immediately chaining high-load bursts.
+It does not actively cool hardware below ambient; it simply enforces a pause.
 
 ### 1) Choose your environment
 
@@ -331,7 +334,9 @@ repo-sorter cooldown --duration 20 --verbose
 
 ### 5) Daily routine
 
-Run the cooldown command immediately before intensive Copilot/search sessions so your M2 SoC can settle to a more stable thermal baseline.
+Run the cooldown command between heavy sessions (or right before the next heavy
+session) to avoid back-to-back sustained load and to standardize your starting
+state for repeatable performance.
 
 ---
 
