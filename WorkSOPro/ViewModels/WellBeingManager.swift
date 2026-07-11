@@ -81,10 +81,15 @@ class WellBeingManager: ObservableObject {
             let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
                 let steps = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.count())) } ?? 0
 
-                Task { [weak self] in
-                    await self?.setStepCount(steps)
-                    continuation.resume()
+                if Thread.isMainThread {
+                    self?.currentMetrics.stepsCount = steps
+                } else {
+                    DispatchQueue.main.sync {
+                        self?.currentMetrics.stepsCount = steps
+                    }
                 }
+
+                continuation.resume()
             }
 
             healthStore.execute(query)
@@ -102,10 +107,15 @@ class WellBeingManager: ObservableObject {
             let query = HKStatisticsQuery(quantityType: exerciseType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
                 let minutes = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.minute())) } ?? 0
 
-                Task { [weak self] in
-                    await self?.setExerciseMinutes(minutes)
-                    continuation.resume()
+                if Thread.isMainThread {
+                    self?.currentMetrics.exerciseMinutes = minutes
+                } else {
+                    DispatchQueue.main.sync {
+                        self?.currentMetrics.exerciseMinutes = minutes
+                    }
                 }
+
+                continuation.resume()
             }
 
             healthStore.execute(query)
@@ -123,10 +133,15 @@ class WellBeingManager: ObservableObject {
             let query = HKStatisticsQuery(quantityType: standType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
                 let hours = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.hour())) } ?? 0
 
-                Task { [weak self] in
-                    await self?.setStandHours(hours)
-                    continuation.resume()
+                if Thread.isMainThread {
+                    self?.currentMetrics.standHours = hours
+                } else {
+                    DispatchQueue.main.sync {
+                        self?.currentMetrics.standHours = hours
+                    }
                 }
+
+                continuation.resume()
             }
 
             healthStore.execute(query)
@@ -147,10 +162,15 @@ class WellBeingManager: ObservableObject {
                     total + Int(sample.endDate.timeIntervalSince(sample.startDate) / 60)
                 }
 
-                Task { [weak self] in
-                    await self?.setMindfulMinutes(totalMinutes)
-                    continuation.resume()
+                if Thread.isMainThread {
+                    self?.currentMetrics.mindfulMinutes = totalMinutes
+                } else {
+                    DispatchQueue.main.sync {
+                        self?.currentMetrics.mindfulMinutes = totalMinutes
+                    }
                 }
+
+                continuation.resume()
             }
             
             healthStore.execute(query)
@@ -173,41 +193,21 @@ class WellBeingManager: ObservableObject {
                     total + (sample.endDate.timeIntervalSince(sample.startDate) / 60)
                 }
 
-                Task { [weak self] in
-                    await self?.setSleepHours(totalMinutes / 60.0)
-                    continuation.resume()
+                if Thread.isMainThread {
+                    self?.currentMetrics.sleepHours = totalMinutes / 60.0
+                } else {
+                    DispatchQueue.main.sync {
+                        self?.currentMetrics.sleepHours = totalMinutes / 60.0
+                    }
                 }
+
+                continuation.resume()
             }
 
             healthStore.execute(query)
         }
     }
     
-    @MainActor
-    private func setStepCount(_ steps: Int) {
-        currentMetrics.stepsCount = steps
-    }
-
-    @MainActor
-    private func setExerciseMinutes(_ minutes: Int) {
-        currentMetrics.exerciseMinutes = minutes
-    }
-
-    @MainActor
-    private func setStandHours(_ hours: Int) {
-        currentMetrics.standHours = hours
-    }
-
-    @MainActor
-    private func setMindfulMinutes(_ minutes: Int) {
-        currentMetrics.mindfulMinutes = minutes
-    }
-
-    @MainActor
-    private func setSleepHours(_ hours: Double) {
-        currentMetrics.sleepHours = hours
-    }
-
     // MARK: - Break Monitoring
     
     private func startBreakMonitoring() {
