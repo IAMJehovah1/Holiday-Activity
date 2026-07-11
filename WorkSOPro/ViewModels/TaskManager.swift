@@ -89,9 +89,8 @@ class TaskManager: ObservableObject {
     func applyAIPrioritization() {
         isLoading = true
         let taskSnapshot = tasks
-        let isHighImpactMode = taskSnapshot.count >= Self.highImpactTaskCountThreshold || taskSnapshot.contains {
-            $0.priority == .high || $0.priority == .urgent
-        }
+        let isHighImpactMode = taskSnapshot.count >= Self.highImpactTaskCountThreshold ||
+            taskSnapshot.contains(where: { $0.priority == .high || $0.priority == .urgent })
         
         Task { [weak self] in
             guard let self = self else { return }

@@ -81,7 +81,7 @@ class WellBeingManager: ObservableObject {
             let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
                 let steps = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.count())) } ?? 0
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.currentMetrics.stepsCount = steps
                     continuation.resume()
                 }
@@ -102,7 +102,7 @@ class WellBeingManager: ObservableObject {
             let query = HKStatisticsQuery(quantityType: exerciseType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
                 let minutes = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.minute())) } ?? 0
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.currentMetrics.exerciseMinutes = minutes
                     continuation.resume()
                 }
@@ -123,7 +123,7 @@ class WellBeingManager: ObservableObject {
             let query = HKStatisticsQuery(quantityType: standType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
                 let hours = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.hour())) } ?? 0
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.currentMetrics.standHours = hours
                     continuation.resume()
                 }
@@ -147,7 +147,7 @@ class WellBeingManager: ObservableObject {
                     total + Int(sample.endDate.timeIntervalSince(sample.startDate) / 60)
                 }
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.currentMetrics.mindfulMinutes = totalMinutes
                     continuation.resume()
                 }
@@ -173,7 +173,7 @@ class WellBeingManager: ObservableObject {
                     total + (sample.endDate.timeIntervalSince(sample.startDate) / 60)
                 }
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.currentMetrics.sleepHours = totalMinutes / 60.0
                     continuation.resume()
                 }
