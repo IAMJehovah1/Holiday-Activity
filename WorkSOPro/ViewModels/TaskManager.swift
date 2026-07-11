@@ -15,6 +15,7 @@ class TaskManager: ObservableObject {
     @Published var errorMessage: String?
     
     private var cancellables = Set<AnyCancellable>()
+    private let agentWorkerPool = ThermalAwareWorkerPool(maxConcurrentTasks: 1)
     
     init() {
         loadTasks()
@@ -85,36 +86,47 @@ class TaskManager: ObservableObject {
     
     func applyAIPrioritization() {
         isLoading = true
+        let taskSnapshot = tasks
+        let isHighImpactMode = taskSnapshot.count >= 8 || taskSnapshot.contains {
+            $0.priority == .high || $0.priority == .urgent
+        }
         
-        // Simulate AI analysis
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        Task { [weak self] in
             guard let self = self else { return }
-            
-            // Sort tasks based on multiple factors
-            self.tasks = self.tasks.map { task in
-                var prioritizedTask = task
-                let score = self.calculatePriorityScore(for: task)
-                
-                // Adjust priority based on score
-                if score > 80 {
-                    prioritizedTask.priority = .urgent
-                } else if score > 60 {
-                    prioritizedTask.priority = .high
-                } else if score > 40 {
-                    prioritizedTask.priority = .medium
-                } else {
-                    prioritizedTask.priority = .low
+
+            await agentWorkerPool.executeTask(isHighImpactTask: isHighImpactMode) { [weak self] in
+                guard let self = self else { return }
+                let prioritizedTasks = Self.prioritizeTasks(taskSnapshot)
+
+                await MainActor.run {
+                    self.tasks = prioritizedTasks
+                    self.saveTasks()
+                    self.isLoading = false
                 }
-                
-                return prioritizedTask
+            }
+        }
+    }
+
+    private static func prioritizeTasks(_ tasks: [Task]) -> [Task] {
+        tasks.map { task in
+            var prioritizedTask = task
+            let score = calculatePriorityScore(for: task)
+
+            if score > 80 {
+                prioritizedTask.priority = .urgent
+            } else if score > 60 {
+                prioritizedTask.priority = .high
+            } else if score > 40 {
+                prioritizedTask.priority = .medium
+            } else {
+                prioritizedTask.priority = .low
             }
             
-            self.saveTasks()
-            self.isLoading = false
+            return prioritizedTask
         }
     }
     
-    private func calculatePriorityScore(for task: Task) -> Int {
+    private static func calculatePriorityScore(for task: Task) -> Int {
         var score = 0
         
         // Factor 1: Due date proximity (40 points)

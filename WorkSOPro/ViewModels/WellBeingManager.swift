@@ -19,6 +19,7 @@ class WellBeingManager: ObservableObject {
     private let healthStore = HKHealthStore()
     private var cancellables = Set<AnyCancellable>()
     private var breakTimer: Timer?
+    private let workerPool = ThermalAwareWorkerPool(maxConcurrentTasks: 1)
     
     init() {
         self.currentMetrics = WellBeingMetrics()
@@ -54,12 +55,19 @@ class WellBeingManager: ObservableObject {
     
     func syncHealthKitData() {
         guard isHealthKitAuthorized else { return }
-        
-        fetchStepCount()
-        fetchExerciseTime()
-        fetchStandHours()
-        fetchMindfulMinutes()
-        fetchSleepData()
+        Task { [weak self] in
+            guard let self = self else { return }
+
+            await workerPool.executeTask(isHighImpactTask: true) { [weak self] in
+                guard let self = self else { return }
+
+                self.fetchStepCount()
+                self.fetchExerciseTime()
+                self.fetchStandHours()
+                self.fetchMindfulMinutes()
+                self.fetchSleepData()
+            }
+        }
     }
     
     private func fetchStepCount() {
