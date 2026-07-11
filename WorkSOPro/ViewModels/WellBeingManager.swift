@@ -61,117 +61,126 @@ class WellBeingManager: ObservableObject {
             await workerPool.executeTask(isHighImpactTask: true) { [weak self] in
                 guard let self = self else { return }
 
-                self.fetchStepCount()
-                self.fetchExerciseTime()
-                self.fetchStandHours()
-                self.fetchMindfulMinutes()
-                self.fetchSleepData()
+                await self.fetchStepCount()
+                await self.fetchExerciseTime()
+                await self.fetchStandHours()
+                await self.fetchMindfulMinutes()
+                await self.fetchSleepData()
             }
         }
     }
     
-    private func fetchStepCount() {
+    private func fetchStepCount() async {
         guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
         
         let now = Date()
         let startOfDay = Calendar.current.startOfDay(for: now)
         let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now, options: .strictStartDate)
         
-        let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
-            guard let result = result, let sum = result.sumQuantity() else { return }
-            let steps = Int(sum.doubleValue(for: HKUnit.count()))
-            
-            DispatchQueue.main.async {
-                self?.currentMetrics.stepsCount = steps
+        await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
+                let steps = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.count())) } ?? 0
+
+                DispatchQueue.main.async {
+                    self?.currentMetrics.stepsCount = steps
+                    continuation.resume()
+                }
             }
+
+            healthStore.execute(query)
         }
-        
-        healthStore.execute(query)
     }
     
-    private func fetchExerciseTime() {
+    private func fetchExerciseTime() async {
         guard let exerciseType = HKQuantityType.quantityType(forIdentifier: .appleExerciseTime) else { return }
         
         let now = Date()
         let startOfDay = Calendar.current.startOfDay(for: now)
         let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now, options: .strictStartDate)
         
-        let query = HKStatisticsQuery(quantityType: exerciseType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
-            guard let result = result, let sum = result.sumQuantity() else { return }
-            let minutes = Int(sum.doubleValue(for: HKUnit.minute()))
-            
-            DispatchQueue.main.async {
-                self?.currentMetrics.exerciseMinutes = minutes
+        await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(quantityType: exerciseType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
+                let minutes = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.minute())) } ?? 0
+
+                DispatchQueue.main.async {
+                    self?.currentMetrics.exerciseMinutes = minutes
+                    continuation.resume()
+                }
             }
+
+            healthStore.execute(query)
         }
-        
-        healthStore.execute(query)
     }
     
-    private func fetchStandHours() {
+    private func fetchStandHours() async {
         guard let standType = HKQuantityType.quantityType(forIdentifier: .appleStandTime) else { return }
         
         let now = Date()
         let startOfDay = Calendar.current.startOfDay(for: now)
         let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now, options: .strictStartDate)
         
-        let query = HKStatisticsQuery(quantityType: standType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
-            guard let result = result, let sum = result.sumQuantity() else { return }
-            let hours = Int(sum.doubleValue(for: HKUnit.hour()))
-            
-            DispatchQueue.main.async {
-                self?.currentMetrics.standHours = hours
+        await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(quantityType: standType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
+                let hours = result?.sumQuantity().map { Int($0.doubleValue(for: HKUnit.hour())) } ?? 0
+
+                DispatchQueue.main.async {
+                    self?.currentMetrics.standHours = hours
+                    continuation.resume()
+                }
             }
+
+            healthStore.execute(query)
         }
-        
-        healthStore.execute(query)
     }
     
-    private func fetchMindfulMinutes() {
+    private func fetchMindfulMinutes() async {
         guard let mindfulType = HKCategoryType.categoryType(forIdentifier: .mindfulSession) else { return }
         
         let now = Date()
         let startOfDay = Calendar.current.startOfDay(for: now)
         let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now, options: .strictStartDate)
         
-        let query = HKSampleQuery(sampleType: mindfulType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, samples, _ in
-            guard let samples = samples as? [HKCategorySample] else { return }
-            
-            let totalMinutes = samples.reduce(0) { total, sample in
-                let duration = sample.endDate.timeIntervalSince(sample.startDate) / 60
-                return total + Int(duration)
+        await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: mindfulType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, samples, _ in
+                let mindfulSamples = samples as? [HKCategorySample] ?? []
+                let totalMinutes = mindfulSamples.reduce(0) { total, sample in
+                    total + Int(sample.endDate.timeIntervalSince(sample.startDate) / 60)
+                }
+
+                DispatchQueue.main.async {
+                    self?.currentMetrics.mindfulMinutes = totalMinutes
+                    continuation.resume()
+                }
             }
             
-            DispatchQueue.main.async {
-                self?.currentMetrics.mindfulMinutes = totalMinutes
-            }
+            healthStore.execute(query)
         }
-        
-        healthStore.execute(query)
     }
     
-    private func fetchSleepData() {
+    private func fetchSleepData() async {
         guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { return }
         
         let now = Date()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now)!
         let predicate = HKQuery.predicateForSamples(withStart: yesterday, end: now, options: .strictStartDate)
         
-        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, samples, _ in
-            guard let samples = samples as? [HKCategorySample] else { return }
-            
-            let sleepSamples = samples.filter { $0.value == HKCategoryValueSleepAnalysis.asleep.rawValue }
-            let totalMinutes = sleepSamples.reduce(0.0) { total, sample in
-                let duration = sample.endDate.timeIntervalSince(sample.startDate) / 60
-                return total + duration
+        await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, samples, _ in
+                let sleepSamples = (samples as? [HKCategorySample] ?? []).filter {
+                    $0.value == HKCategoryValueSleepAnalysis.asleep.rawValue
+                }
+                let totalMinutes = sleepSamples.reduce(0.0) { total, sample in
+                    total + (sample.endDate.timeIntervalSince(sample.startDate) / 60)
+                }
+
+                DispatchQueue.main.async {
+                    self?.currentMetrics.sleepHours = totalMinutes / 60.0
+                    continuation.resume()
+                }
             }
-            
-            DispatchQueue.main.async {
-                self?.currentMetrics.sleepHours = totalMinutes / 60.0
-            }
+
+            healthStore.execute(query)
         }
-        
-        healthStore.execute(query)
     }
     
     // MARK: - Break Monitoring
