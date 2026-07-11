@@ -420,3 +420,101 @@ class TestCLI:
     def test_remove_nonexistent_returns_error(self, db_path, capsys):
         rc, _, _ = self._run(["remove", "nobody/nowhere"], db_path, capsys)
         assert rc == 1
+
+
+# ---------------------------------------------------------------------------
+# Cooldown – unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestCooldown:
+    """Tests for repo_sorter.cooldown.run_cooldown."""
+
+    from repo_sorter.cooldown import run_cooldown as _run_cooldown
+
+    def _cooldown(self, **kwargs):
+        """Run cooldown with instant ticks and capture output."""
+        import io
+        from repo_sorter.cooldown import run_cooldown
+
+        buf = io.StringIO()
+        run_cooldown(_stream=buf, _tick=0, **kwargs)
+        return buf.getvalue()
+
+    def test_zero_duration_prints_ready(self):
+        out = self._cooldown(duration=0)
+        assert "Ready" in out
+
+    def test_header_contains_label(self):
+        out = self._cooldown(duration=0, label="Pre-fetch cooldown")
+        assert "Pre-fetch cooldown" in out
+
+    def test_default_label(self):
+        out = self._cooldown(duration=0)
+        assert "SoC Cooldown" in out
+
+    def test_countdown_lines_verbose(self):
+        out = self._cooldown(duration=3, verbose=True)
+        # Each remaining second (3, 2, 1) should produce a line
+        assert out.count("remaining") == 3
+
+    def test_verbose_mentions_duration(self):
+        out = self._cooldown(duration=5, verbose=True)
+        assert "5s" in out
+
+    def test_ready_banner_always_present(self):
+        for d in (0, 1, 5):
+            out = self._cooldown(duration=d)
+            assert "Ready" in out, f"No ready banner for duration={d}"
+
+    def test_return_value_is_none(self):
+        import io
+        from repo_sorter.cooldown import run_cooldown
+
+        result = run_cooldown(duration=0, _stream=io.StringIO(), _tick=0)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Cooldown – CLI integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestCooldownCLI:
+    def _run(self, args, db_path, capsys):
+        from repo_sorter.cli import main
+
+        rc = main(["--db", db_path] + args)
+        out, err = capsys.readouterr()
+        return rc, out, err
+
+    def test_cooldown_zero_duration(self, db_path, capsys):
+        rc, out, _ = self._run(["cooldown", "--duration", "0"], db_path, capsys)
+        assert rc == 0
+        assert "Ready" in out
+
+    def test_cooldown_custom_label(self, db_path, capsys):
+        rc, out, _ = self._run(
+            ["cooldown", "--duration", "0", "--label", "Pre-agent pause"],
+            db_path,
+            capsys,
+        )
+        assert rc == 0
+        assert "Pre-agent pause" in out
+
+    def test_cooldown_verbose_flag(self, db_path, capsys, monkeypatch):
+        # Patch time.sleep to skip real waiting and _tick cannot be set via CLI
+        # so we monkeypatch time.sleep instead
+        monkeypatch.setattr("time.sleep", lambda _: None)
+        rc, out, _ = self._run(
+            ["cooldown", "--duration", "2", "--verbose"],
+            db_path,
+            capsys,
+        )
+        assert rc == 0
+        assert "remaining" in out
+
+    def test_cooldown_short_form_flags(self, db_path, capsys):
+        rc, out, _ = self._run(["cooldown", "-n", "0", "-l", "Quick cool"], db_path, capsys)
+        assert rc == 0
+        assert "Quick cool" in out

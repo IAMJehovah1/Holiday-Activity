@@ -18,6 +18,7 @@ import os
 import sys
 from typing import List, Optional
 
+from .cooldown import run_cooldown
 from .sorter import RepoSorter, _auto_categorize
 
 
@@ -254,7 +255,16 @@ def _cmd_export(args: argparse.Namespace, sorter: RepoSorter) -> int:
     return 0
 
 
-def _cmd_import(args: argparse.Namespace, sorter: RepoSorter) -> int:
+def _cmd_cooldown(args: argparse.Namespace, sorter: RepoSorter) -> int:
+    run_cooldown(
+        duration=args.duration,
+        label=args.label,
+        verbose=args.verbose,
+    )
+    return 0
+
+
+
     try:
         count = sorter.import_repos(args.input, overwrite=args.overwrite)
         print(f"Imported {count} repositories.")
@@ -414,6 +424,32 @@ examples:
         "--overwrite", action="store_true", help="Overwrite existing entries"
     )
 
+    # -- cooldown ------------------------------------------------------------
+    p_cooldown = sub.add_parser(
+        "cooldown",
+        help="Run a pre-task SoC cooldown sequence (iPad Pro M2)",
+    )
+    p_cooldown.add_argument(
+        "--duration",
+        "-n",
+        type=int,
+        default=30,
+        metavar="SECONDS",
+        help="Cooldown duration in seconds (default: 30)",
+    )
+    p_cooldown.add_argument(
+        "--label",
+        "-l",
+        default="SoC Cooldown",
+        help='Display label shown in the header (default: "SoC Cooldown")',
+    )
+    p_cooldown.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Print one line per second instead of an in-place countdown",
+    )
+
     return parser
 
 
@@ -435,6 +471,7 @@ _COMMAND_MAP = {
     "fetch": _cmd_fetch,
     "export": _cmd_export,
     "import": _cmd_import,
+    "cooldown": _cmd_cooldown,
 }
 
 
