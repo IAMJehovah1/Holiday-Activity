@@ -3,6 +3,7 @@ Tests for repo_sorter.sorter (core logic) and repo_sorter.cli (command-line inte
 """
 
 import json
+import io
 import os
 import sys
 import tempfile
@@ -468,11 +469,12 @@ class TestCooldown:
             assert "Ready" in out, f"No ready banner for duration={d}"
 
     def test_return_value_is_none(self):
-        import io
-        from repo_sorter.cooldown import run_cooldown
-
-        result = run_cooldown(duration=0, _stream=io.StringIO(), _tick=0)
+        result = self.__class__._run_cooldown(duration=0, _stream=io.StringIO(), _tick=0)
         assert result is None
+
+    def test_negative_duration_raises_value_error(self):
+        with pytest.raises(ValueError):
+            self.__class__._run_cooldown(duration=-1, _stream=io.StringIO(), _tick=0)
 
 
 # ---------------------------------------------------------------------------
@@ -518,3 +520,8 @@ class TestCooldownCLI:
         rc, out, _ = self._run(["cooldown", "-n", "0", "-l", "Quick cool"], db_path, capsys)
         assert rc == 0
         assert "Quick cool" in out
+
+    def test_cooldown_negative_duration_returns_error(self, db_path, capsys):
+        rc, _, err = self._run(["cooldown", "--duration", "-1"], db_path, capsys)
+        assert rc == 1
+        assert "duration must be 0 or greater" in err

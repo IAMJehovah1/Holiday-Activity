@@ -255,20 +255,24 @@ def _cmd_export(args: argparse.Namespace, sorter: RepoSorter) -> int:
     return 0
 
 
-def _cmd_cooldown(args: argparse.Namespace, sorter: RepoSorter) -> int:
-    run_cooldown(
-        duration=args.duration,
-        label=args.label,
-        verbose=args.verbose,
-    )
-    return 0
-
-
-
+def _cmd_import(args: argparse.Namespace, sorter: RepoSorter) -> int:
     try:
         count = sorter.import_repos(args.input, overwrite=args.overwrite)
         print(f"Imported {count} repositories.")
     except (FileNotFoundError, json.JSONDecodeError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_cooldown(args: argparse.Namespace, sorter: RepoSorter) -> int:
+    try:
+        run_cooldown(
+            duration=args.duration,
+            label=args.label,
+            verbose=args.verbose,
+        )
+    except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     return 0

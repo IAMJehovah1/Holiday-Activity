@@ -81,6 +81,7 @@ repo-sorter [--db PATH] <command> [options]
 | `fetch` | Import repositories from GitHub |
 | `export` | Export catalogue to JSON or CSV |
 | `import` | Import catalogue from a JSON file |
+| `cooldown` | Run a short pre-task cooldown timer before heavy AI work |
 
 ---
 
@@ -214,6 +215,16 @@ repo-sorter export --output my-repos.csv --format csv
 repo-sorter import my-repos.json
 # Use --overwrite to replace existing entries
 repo-sorter import my-repos.json --overwrite
+```
+
+### Run a pre-task cooldown
+
+```bash
+# Default 30-second cooldown
+repo-sorter cooldown
+
+# Fast cooldown for quick AI tasks
+repo-sorter cooldown --duration 10 --label "Pre-agent pause"
 ```
 
 ---
