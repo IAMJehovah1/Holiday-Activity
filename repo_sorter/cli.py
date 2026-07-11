@@ -264,7 +264,7 @@ def _cmd_cooldown(args: argparse.Namespace, sorter: RepoSorter) -> int:
     return 0
 
 
-
+def _cmd_import(args: argparse.Namespace, sorter: RepoSorter) -> int:
     try:
         count = sorter.import_repos(args.input, overwrite=args.overwrite)
         print(f"Imported {count} repositories.")
