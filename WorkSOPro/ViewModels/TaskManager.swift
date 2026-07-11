@@ -9,6 +9,8 @@ import Foundation
 import Combine
 
 class TaskManager: ObservableObject {
+    private static let highImpactTaskCountThreshold = 8
+
     @Published var tasks: [Task] = []
     @Published var projects: [Project] = []
     @Published var isLoading = false
@@ -87,7 +89,7 @@ class TaskManager: ObservableObject {
     func applyAIPrioritization() {
         isLoading = true
         let taskSnapshot = tasks
-        let isHighImpactMode = taskSnapshot.count >= 8 || taskSnapshot.contains {
+        let isHighImpactMode = taskSnapshot.count >= Self.highImpactTaskCountThreshold || taskSnapshot.contains {
             $0.priority == .high || $0.priority == .urgent
         }
         

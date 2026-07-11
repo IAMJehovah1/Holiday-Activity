@@ -37,17 +37,13 @@ actor ThermalAwareWorkerPool {
         let completionCooldown = postExecutionCooldown(isHighImpactTask: isHighImpactTask)
         
         Task.detached(priority: taskPriority) { [self] in
-            defer {
-                Task {
-                    await self.taskCompleted()
-                }
-            }
-
             await task()
             
             if let cooldown = completionCooldown {
                 try? await Task.sleep(for: cooldown)
             }
+
+            await self.taskCompleted()
         }
     }
     
@@ -73,8 +69,6 @@ actor ThermalAwareWorkerPool {
             return max(1, maxConcurrentTasks - 1)
         case .serious, .critical:
             return 1
-        @unknown default:
-            return 1
         }
     }
     
@@ -86,8 +80,6 @@ actor ThermalAwareWorkerPool {
             return .utility
         case .serious, .critical:
             return .background
-        @unknown default:
-            return .utility
         }
     }
     
@@ -103,8 +95,6 @@ actor ThermalAwareWorkerPool {
             return .milliseconds(500)
         case .critical:
             return .seconds(1)
-        @unknown default:
-            return .milliseconds(250)
         }
     }
     
@@ -118,8 +108,6 @@ actor ThermalAwareWorkerPool {
             return .milliseconds(250)
         case .serious, .critical:
             return .milliseconds(750)
-        @unknown default:
-            return .milliseconds(250)
         }
     }
     
