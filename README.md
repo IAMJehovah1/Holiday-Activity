@@ -82,6 +82,7 @@ repo-sorter [--db PATH] <command> [options]
 | `export` | Export catalogue to JSON or CSV |
 | `import` | Import catalogue from a JSON file |
 | `cooldown` | Run a short pre-task cooldown timer before heavy AI work |
+| `agent` | Run the thermal-aware agent/worker model (efficiency-core scheduling, power hand-back) |
 
 ---
 
@@ -229,6 +230,37 @@ repo-sorter cooldown --duration 10 --label "Pre-agent pause"
 
 ---
 
+## Thermal-Aware Agent–Worker Model
+
+The `agent` command runs a language-model-style orchestrator whose optimisation
+target is **thermal headroom**, not raw throughput.  Instead of overloading
+threads until the SoC heats up, a `ThermalAgent` manages a fixed power envelope
+and delegates work to **agent-qualified workers** that prefer the M-series
+**efficiency cores** on iPadOS (iPad Pro).  When a worker finishes a task it
+**hands the unconsumed power back to the agent** — the power hand-back
+protocol — so the chipset cools down between tasks.
+
+Worker skill profiles are trained on workflow patterns distilled from advanced
+users and algorithms: single-pass streaming, batched I/O with idle gaps,
+cache-local reasoning bursts, quantized inference, and tree-reduce
+summarisation.
+
+```bash
+# Run the agent/worker model on a prompt
+repo-sorter agent "tokenize stream retrieve batch-io summarize reduce"
+
+# Inspect the trained workflow patterns
+repo-sorter agent --list-patterns
+
+# Constrain the power envelope (watts)
+repo-sorter agent "summarize reduce the catalogue" --power-budget 3.0
+```
+
+Each delegation prints the granted / consumed / **returned** watts, and the
+final report shows energy saved versus a naive all-performance-core baseline.
+
+---
+
 ## Managing Categories
 
 ### List all categories
@@ -320,6 +352,8 @@ Holiday-Activity/
 │   ├── __init__.py          # Package metadata
 │   ├── __main__.py          # python -m repo_sorter entry point
 │   ├── cli.py               # CLI argument parsing and command handlers
+│   ├── cooldown.py          # Pre-task SoC cooldown sequence
+│   ├── agent_worker.py      # Thermal-aware agent/worker orchestration model
 │   ├── sorter.py            # Core data model, CRUD, auto-categorisation
 │   └── data/
 │       └── categories.json  # Built-in medical category definitions

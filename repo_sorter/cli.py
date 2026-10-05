@@ -18,6 +18,7 @@ import os
 import sys
 from typing import List, Optional
 
+from .agent_worker import run_demo, trained_patterns
 from .cooldown import run_cooldown
 from .sorter import RepoSorter, _auto_categorize
 
@@ -278,6 +279,26 @@ def _cmd_cooldown(args: argparse.Namespace, sorter: RepoSorter) -> int:
     return 0
 
 
+def _cmd_agent(args: argparse.Namespace, sorter: RepoSorter) -> int:
+    if args.list_patterns:
+        print(f"\n{_c('Trained workflow patterns:', _BOLD)}\n")
+        for pattern in trained_patterns():
+            print(
+                f"  {_c(pattern.name, _BOLD + _GREEN)}  "
+                f"chunking={pattern.chunking:.0%}  "
+                f"duty-cycle={pattern.duty_cycle:.0%}  "
+                f"{_c(pattern.description, _GREY)}"
+            )
+        print()
+        return 0
+    try:
+        run_demo(args.prompt, power_budget_w=args.power_budget)
+    except (RuntimeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Parser construction
 # ---------------------------------------------------------------------------
@@ -454,6 +475,31 @@ examples:
         help="Print one line per second instead of an in-place countdown",
     )
 
+    # -- agent ---------------------------------------------------------------
+    p_agent = sub.add_parser(
+        "agent",
+        help="Run the thermal-aware agent/worker model (iPad Pro efficiency cores)",
+    )
+    p_agent.add_argument(
+        "prompt",
+        nargs="?",
+        default="tokenize stream retrieve batch-io summarize",
+        help="Natural-language prompt for the ThermalAgent to plan and run",
+    )
+    p_agent.add_argument(
+        "--power-budget",
+        "-p",
+        type=float,
+        default=5.0,
+        metavar="WATTS",
+        help="Total power envelope managed by the agent (default: 5.0 W)",
+    )
+    p_agent.add_argument(
+        "--list-patterns",
+        action="store_true",
+        help="List the trained workflow patterns and exit",
+    )
+
     return parser
 
 
@@ -476,6 +522,7 @@ _COMMAND_MAP = {
     "export": _cmd_export,
     "import": _cmd_import,
     "cooldown": _cmd_cooldown,
+    "agent": _cmd_agent,
 }
 
 

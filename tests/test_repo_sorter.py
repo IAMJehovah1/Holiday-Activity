@@ -525,3 +525,220 @@ class TestCooldownCLI:
         rc, _, err = self._run(["cooldown", "--duration", "-1"], db_path, capsys)
         assert rc == 1
         assert "duration must be 0 or greater" in err
+
+
+# ---------------------------------------------------------------------------
+# Agent–Worker model – unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestSkillProfile:
+    from repo_sorter.agent_worker import SkillProfile as _SkillProfile
+
+    def test_covers_required_skills(self):
+        profile = self._SkillProfile(frozenset({"tokenize", "stream"}), 0.9)
+        assert profile.covers(frozenset({"tokenize"}))
+        assert not profile.covers(frozenset({"tokenize", "infer"}))
+
+    def test_affinity_bounds_enforced(self):
+        with pytest.raises(ValueError):
+            self._SkillProfile(frozenset({"x"}), 1.5)
+        with pytest.raises(ValueError):
+            self._SkillProfile(frozenset({"x"}), -0.1)
+
+
+class TestAgentWorker:
+    from repo_sorter.agent_worker import (
+        AgentWorker as _AgentWorker,
+        SkillProfile as _SkillProfile,
+        TaskStep as _TaskStep,
+        CoreType as _CoreType,
+        WorkerBusyError as _WorkerBusyError,
+    )
+
+    def _worker(self, affinity=0.9):
+        return self._AgentWorker(
+            name="w",
+            profile=self._SkillProfile(frozenset({"tokenize", "stream"}), affinity),
+        )
+
+    def _step(self, complexity=2.0):
+        return self._TaskStep("s", complexity, frozenset({"tokenize"}))
+
+    def test_qualification(self):
+        worker = self._worker()
+        assert worker.is_qualified(self._step())
+        other = self._TaskStep("s2", 1.0, frozenset({"infer"}))
+        assert not worker.is_qualified(other)
+
+    def test_high_affinity_prefers_efficiency_core(self):
+        assert self._worker(0.9).preferred_core is self._CoreType.EFFICIENCY
+
+    def test_low_affinity_prefers_performance_core(self):
+        assert self._worker(0.2).preferred_core is self._CoreType.PERFORMANCE
+
+    def test_execute_without_power_raises(self):
+        with pytest.raises(RuntimeError):
+            self._worker().execute(self._step(), None)
+
+    def test_double_power_grant_raises_busy(self):
+        worker = self._worker()
+        worker.accept_power(1.0)
+        with pytest.raises(self._WorkerBusyError):
+            worker.accept_power(1.0)
+
+    def test_complete_returns_power_handoff(self):
+        worker = self._worker()
+        worker.accept_power(2.0)
+        stats = worker.execute(self._step(), None)
+        handoff = worker.complete(self._step(), stats)
+        assert handoff.power_granted_w == 2.0
+        assert 0.0 <= handoff.power_consumed_w <= 2.0
+        assert handoff.power_returned_w == pytest.approx(
+            2.0 - handoff.power_consumed_w
+        )
+        assert not worker.is_holding_power
+
+    def test_trained_pattern_reduces_energy(self):
+        from repo_sorter.agent_worker import trained_patterns
+
+        worker = self._worker()
+        step = self._step(complexity=4.0)
+        worker.accept_power(4.0)
+        plain = worker.execute(step, None)
+        worker.complete(step, plain)
+        pattern = next(p for p in trained_patterns() if p.name == "stream-tokenize")
+        worker.accept_power(4.0)
+        trained = worker.execute(step, pattern)
+        assert trained.energy_joules < plain.energy_joules
+        assert trained.idle_fraction > 0.0
+
+
+class TestThermalAgent:
+    from repo_sorter.agent_worker import ThermalAgent as _ThermalAgent
+
+    @staticmethod
+    def _trained_workers():
+        from repo_sorter.agent_worker import trained_workers
+
+        return trained_workers()
+
+    def _agent(self, **kwargs):
+        agent = self._ThermalAgent(**kwargs)
+        for worker in self._trained_workers():
+            agent.register_worker(worker)
+        return agent
+
+    def test_invalid_budget_rejected(self):
+        with pytest.raises(ValueError):
+            self._ThermalAgent(power_budget_w=0)
+
+    def test_duplicate_worker_rejected(self):
+        agent = self._agent()
+        with pytest.raises(ValueError):
+            agent.register_worker(self._trained_workers()[0])
+
+    def test_run_without_workers_raises(self):
+        agent = self._ThermalAgent()
+        with pytest.raises(RuntimeError):
+            agent.run("tokenize something")
+
+    def test_plan_matches_trained_patterns(self):
+        agent = self._agent()
+        steps = agent.plan("tokenize stream then summarize reduce")
+        names = {s.name for s in steps}
+        assert "stream-tokenize" in names
+        assert "reduce-summarize" in names
+
+    def test_plan_fallback_general_infer(self):
+        agent = self._agent()
+        steps = agent.plan("zzz qqq vvv")
+        assert [s.name for s in steps] == ["general-infer"]
+
+    def test_run_saves_energy_vs_baseline(self):
+        agent = self._agent()
+        report = agent.run("tokenize stream retrieve batch-io summarize reduce")
+        assert report.actual_energy_joules < report.baseline_energy_joules
+        assert report.energy_saved_fraction > 0.5
+
+    def test_run_hands_power_back(self):
+        agent = self._agent()
+        report = agent.run("tokenize stream")
+        assert report.handoffs, "expected at least one delegation"
+        for handoff in report.handoffs:
+            assert handoff.power_returned_w >= 0.0
+        # All workers returned power — none left holding
+        assert all(not w.is_holding_power for w in agent.workers)
+
+    def test_run_routes_to_coolest_qualified_worker(self):
+        agent = self._agent()
+        report = agent.run("tokenize stream")
+        for handoff in report.handoffs:
+            assert handoff.worker_name == "tokenizer-e"
+
+    def test_run_unqualified_step_raises(self):
+        from repo_sorter.agent_worker import AgentWorker, SkillProfile
+
+        agent = self._ThermalAgent()
+        agent.register_worker(
+            AgentWorker("narrow", SkillProfile(frozenset({"tokenize"}), 0.9))
+        )
+        with pytest.raises(RuntimeError):
+            agent.run("zzz qqq vvv")  # falls back to general-infer (needs "infer")
+
+    def test_report_summary_mentions_savings(self):
+        agent = self._agent()
+        report = agent.run("tokenize stream")
+        summary = report.summary()
+        assert "Energy saved" in summary
+        assert "Power handed back" in summary
+
+    def test_run_demo_prints_report(self):
+        from repo_sorter.agent_worker import run_demo
+
+        buf = io.StringIO()
+        report = run_demo("tokenize stream", _stream=buf)
+        out = buf.getvalue()
+        assert "ThermalAgent" in out
+        assert "returned" in out
+        assert report.handoffs
+
+
+# ---------------------------------------------------------------------------
+# Agent – CLI integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestAgentCLI:
+    def _run(self, args, db_path, capsys):
+        from repo_sorter.cli import main
+
+        rc = main(["--db", db_path] + args)
+        out, err = capsys.readouterr()
+        return rc, out, err
+
+    def test_agent_default_prompt(self, db_path, capsys):
+        rc, out, _ = self._run(["agent"], db_path, capsys)
+        assert rc == 0
+        assert "ThermalAgent" in out
+        assert "Energy saved" in out
+
+    def test_agent_custom_prompt(self, db_path, capsys):
+        rc, out, _ = self._run(
+            ["agent", "tokenize stream the catalogue"], db_path, capsys
+        )
+        assert rc == 0
+        assert "stream-tokenize" in out
+
+    def test_agent_list_patterns(self, db_path, capsys):
+        rc, out, _ = self._run(["agent", "--list-patterns"], db_path, capsys)
+        assert rc == 0
+        assert "stream-tokenize" in out
+        assert "quantized-infer" in out
+
+    def test_agent_invalid_power_budget(self, db_path, capsys):
+        rc, _, err = self._run(
+            ["agent", "--power-budget", "0"], db_path, capsys
+        )
+        assert rc == 1
+        assert "power_budget_w must be positive" in err
